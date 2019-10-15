@@ -49,10 +49,10 @@ class Cache(object):
             block = Block()
             self.blocks.append(block)
         print("——————运行参数————————")
+        print('file', config.file_name)
         for key in vars(self):
             if key != 'blocks':
                 print(key, eval('self.' + key))
-        print("——————————————————————")
 
     def read(self, address, time):
         print("--read from")
@@ -83,10 +83,7 @@ class Cache(object):
                 self.blocks[index].is_vaild = True
                 self.blocks[index].tag = tag
             return
-        elif self.block_placement == 'FullyAssociative':
-            # TODO
-            pass
-        elif self.block_placement == 'NWaySetAssociative':
+        elif self.block_placement == 'NWaySetAssociative' or self.block_placement == 'FullyAssociative':
             # found the block
             tag = int(address / self.block_size)  # tag
             # index = tag % self.set_count
@@ -165,23 +162,49 @@ class Cache(object):
         print('hit rate:', self.hits / total)
         print('total time', self.total_time)
         print('average time', self.total_time / total)
-        print("————————STATISTICS————————")
 
 
 def adjust_arg(argv, config):
-    opts, args = getopt.getopt(argv, 'hf:', ['help', 'file='])
+    opts, args = getopt.getopt(argv, 'hf:c:b:s:r:p:',
+                               ['help', 'file=', 'cache=', 'block=', 'set=', 'replace=', 'placement='])
     for opt, arg in opts:
+        # TODO 参数类型检查？
         if opt in ('-h', '--help'):
-            print('tips:cache.py-f <file_path> ')
+            print('tips:\n-f <file_path> ')
+            print('-c <cache_size>')
+            print('-b <block_size>')
+            print('-s <set_size>')
+            print('-r [random,FIFO,LRU]')
+            print('-p [d(直接映射),f（全关联）,n(n路关联)]')
             return
         elif opt in ('-f', '--file'):
             config.file_name = arg
+        elif opt in ('-c', '--cache'):
+            config.cache_size = arg
+        elif opt in ('-b', '--block'):
+            config.block_size = arg
+        elif opt in ('-s', '--set'):
+            config.set_size = arg
+        elif opt in ('-r', '--replace'):
+            config.Replace_Strategy = arg
+        elif opt in ('-p', '--placement'):
+            if arg in ['d', 'D', 'DirectMapped']:
+                # 直接映射
+                config.Block_Placement = Block_Placement[0]
+            elif arg in ['f', 'F', 'FullyAssociative']:
+                # 全关联
+                config.Block_Placement = Block_Placement[1]
+            elif arg in ['n', 'N', 'NWaySetAssociative']:
+                # n路关联
+                config.Block_Placement = Block_Placement[2]
     return config
 
 
 def main(argv):
     config = runConfig.RunConfig()
     config = adjust_arg(argv, config)
+    if config == None:
+        return
     cache = Cache(config)
 
     file = open(config.file_name)
