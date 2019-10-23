@@ -16,6 +16,6 @@ class RunConfig(object):
         # self.block_placement = 'DirectMapped'
         self.block_placement = 'FullyAssociative'
         # self.block_placement = 'NWaySetAssociative'
-        # self.replace_strategy = 'Random'
-        self.replace_strategy = 'FIFO'
+        self.replace_strategy = 'Random'
         # self.replace_strategy = 'FIFO'
+        # self.replace_strategy = 'LRU'

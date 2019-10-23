@@ -44,8 +44,8 @@ class Cache(object):
         if self.block_placement == 'NWaySetAssociative':
             self.set_count = int(self.cache_size / self.block_size / self.set_size)  # 组数
         elif self.block_placement == 'FullyAssociative':
-            self.set_size = 1
-            self.set_count = self.block_number
+            self.set_size = self.block_number
+            self.set_count = 1
 
         # block的总数
         for i in range(self.block_number):
@@ -119,7 +119,7 @@ class Cache(object):
             self.replaces += 1
             if self.replace_strategy == 'Random':
                 # random replace
-                r = random.randint(0, self.set_size - 1) + index
+                r = random.randint(0, self.set_count - 1)
 
                 self.blocks[r].is_valid = True
                 self.blocks[r].tag = tag
@@ -167,6 +167,8 @@ class Cache(object):
         print('hit rate:', self.hits / total)
         print('total time', self.total_time)
         print('average time', self.total_time / total)
+
+        print('test:', self.total - self.writes - self.hits - self.replaces)
 
 
 def adjust_arg(argv, config):
