@@ -7,7 +7,7 @@ import fileinput
 import getopt
 
 Replace_Strategy = ['Random', 'LRU', 'FIFO']
-Write_Strategy = ['WriteThrough', 'WriteBack']
+# Write_Strategy = ['WriteThrough', 'WriteBack']
 Block_Placement = ['DirectMapped', 'FullyAssociative', 'NWaySetAssociative']
 
 
@@ -27,9 +27,12 @@ class Block(object):
 class Cache(object):
     cache_size = block_size = set_size = set_count = hits = reads = writes = replaces = total = total_time = 0
     blocks = list()
+    config = None
 
     # 定义构造方法
     def __init__(self, config):
+
+        self.config = config
         self.cache_size = config.cache_size  # cache 大小
         self.block_size = config.block_size  # 块的大小
         self.set_size = config.set_size  # 组大小
@@ -41,18 +44,13 @@ class Cache(object):
         if self.block_placement == 'NWaySetAssociative':
             self.set_count = int(self.cache_size / self.block_size / self.set_size)  # 组数
         elif self.block_placement == 'FullyAssociative':
-            self.set_count = 1
-            self.set_size = self.block_number
+            self.set_size = 1
+            self.set_count = self.block_number
 
         # block的总数
         for i in range(self.block_number):
             block = Block()
             self.blocks.append(block)
-        print("——————运行参数————————")
-        print('file', config.file_name)
-        for key in vars(self):
-            if key != 'blocks':
-                print(key, eval('self.' + key))
 
     def read(self, address, time):
         print("--read from")
@@ -60,7 +58,7 @@ class Cache(object):
         self.total += 1
 
         if self.block_placement == 'DirectMapped':
-            # 一对一
+            # DirectMapped
             # find
             tag = int(address / self.block_size)
             index = tag % self.block_number
@@ -118,30 +116,31 @@ class Cache(object):
                     return
             # 块替换
             print("cache is full! Need replace!")
+            self.replaces += 1
             if self.replace_strategy == 'Random':
                 # random replace
                 r = random.randint(0, self.set_size - 1) + index
-                self.replaces += 1
+
                 self.blocks[r].is_valid = True
                 self.blocks[r].tag = tag
             elif self.replace_strategy == 'LRU':
                 # 同一组之内的替换 找 not_use_time 最大的
-                j = index
+                max_index = index
                 for i in range(index, index + self.set_size):
-                    if self.blocks[j].not_use_time < self.blocks[i].not_use_time:
-                        j = i
-                self.blocks[j].is_valid = True
-                self.blocks[j].tag = tag
-                self.blocks[j].not_use_time = 0
+                    if self.blocks[max_index].not_use_time < self.blocks[i].not_use_time:
+                        max_index = i
+                self.blocks[max_index].is_valid = True
+                self.blocks[max_index].tag = tag
+                self.blocks[max_index].not_use_time = 0
             elif self.replace_strategy == 'FIFO':
                 # 同一组之内的替换 找 add_time 最小的
-                j = index
+                min_time_index = index
                 for i in range(index, index + self.set_size):
-                    if self.blocks[j].add_time > self.blocks[i].add_time:
-                        j = i
-                self.blocks[j].is_valid = True
-                self.blocks[j].tag = tag
-                self.blocks[j].add_time = time
+                    if self.blocks[min_time_index].add_time > self.blocks[i].add_time:
+                        min_time_index = i
+                self.blocks[min_time_index].is_valid = True
+                self.blocks[min_time_index].tag = tag
+                self.blocks[min_time_index].add_time = time
         return
 
     def write(self, address, time):
@@ -150,12 +149,18 @@ class Cache(object):
         self.total += 1
 
     def show_statistics(self):
+        print("——————运行参数————————")
+        print('file', self.config.file_name)
+        for key in vars(self):
+            if key != 'blocks' or key != 'config':
+                print(key, eval('self.' + key))
         print("————————STATISTICS————————")
         print('Cache size', self.cache_size)
         print('block size', self.block_size)
         print('set size', self.set_size)
         print('total r/w', self.total)
-        print('hit r/w', self.hits)
+        print('writes', self.writes)
+        print('hit ', self.hits)
         print('replace', self.replaces)
 
         total = 1 if self.total == 0 else self.total
@@ -169,6 +174,7 @@ def adjust_arg(argv, config):
                                ['help', 'file=', 'cache=', 'block=', 'set=', 'replace=', 'placement='])
     for opt, arg in opts:
         # TODO 参数类型检查？
+        print(opt, arg)
         if opt in ('-h', '--help'):
             print('tips:\n-f <file_path> ')
             print('-c <cache_size>')
@@ -186,17 +192,17 @@ def adjust_arg(argv, config):
         elif opt in ('-s', '--set'):
             config.set_size = arg
         elif opt in ('-r', '--replace'):
-            config.Replace_Strategy = arg
+            config.replace_strategy = arg
         elif opt in ('-p', '--placement'):
             if arg in ['d', 'D', 'DirectMapped']:
                 # 直接映射
-                config.Block_Placement = Block_Placement[0]
+                config.block_placement = Block_Placement[0]
             elif arg in ['f', 'F', 'FullyAssociative']:
                 # 全关联
-                config.Block_Placement = Block_Placement[1]
+                config.block_placement = Block_Placement[1]
             elif arg in ['n', 'N', 'NWaySetAssociative']:
                 # n路关联
-                config.Block_Placement = Block_Placement[2]
+                config.block_placement = Block_Placement[2]
     return config
 
 
@@ -208,7 +214,10 @@ def main(argv):
     cache = Cache(config)
 
     file = open(config.file_name)
+    # 这边的time指的是index（也就是该 接收到 地址得时间）
     for time, line in enumerate(file.readlines()):
+        if time > 6000:
+            break
         address, rw = line.split(maxsplit=1)
         rw = rw.replace('\n', "")
         if rw == 'R':
@@ -217,6 +226,7 @@ def main(argv):
             cache.write(int('0x' + address, 16), time)
         else:
             raise Exception("data format error")
+
     cache.show_statistics()
 
 
